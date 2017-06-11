@@ -2,15 +2,15 @@
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 //-------------------Sampling configuration variables--------------
 // Amounts of samples taken for smooting
-int samplesize = 5;
+int samplesize = 15;
 // Screen and data refreshrate
-int refreshPerSecond = 60;
+int refreshPerSecond = 40;
 //-------------------Sensor configuration variables--------------
 // Amount of sensors connected
 int sensorCount = 5;
 // Sensor names comma seperated in one string
 String sensorNames = "Breathing,Top,Bottom,Left,Right,A5";
-String sensorRanges = "860,920|0,1023|0,1023|0,1023|0,1023|0,1023";
+String sensorRanges = "0,1023|0,1023|0,1023|0,1023|0,1023|0,1023";
 // Sample pointer, for current scope
 int samplePointer = 0;
 // The sample array
@@ -40,10 +40,12 @@ void setup()
     while(Serial.available() == 0){}
     Serial.println ("INIT");
     sendInitialData();
+    // Set the analog refference to external usage
+    analogReference(AR_EXTERNAL);
     // Set the relevant pins to pullup mode, and print them
     for( int s = 0; s < sensorCount; s++) {
         //pinMode(A0+s, INPUT_PULLUP);
-        pinMode(A0+s, INPUT);
+        //pinMode(A0+s, INPUT);
     }
     // set up the LCD's number of columns and rows:
     lcd.begin(16, 2);

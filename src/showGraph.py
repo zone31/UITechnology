@@ -21,6 +21,10 @@ class SensorAnalyzer:
       self.starttime = 0
       self.endtime = 0
       self.maxTime = maxTime
+      self.torefresh = False
+      self.refreshTime = int(round(time.time() * 1000))
+      self.axs = 0;
+      self.axsrange =[];
       # Set up the arduino, and get arguments from it
       self.arduinoArgs = {}
       self.init_serial()
@@ -34,15 +38,19 @@ class SensorAnalyzer:
     color = colors[i % len(colors)]
     ax.set_xlim([0, self.maxTime * self.arduinoArgs["fps"]-1])
     ax.set_ylim([valmin, valmax])
+    for tick in ax.get_yticklabels():
+        tick.set_rotation(70)
+
     return ax.plot([], [],color=color,label=self.arduinoArgs["sensorNames"][i])[0]
 
   def run(self):
     # set up animation
     fig1 = plt.figure("All sensors")
+    #plt.ion()
     # Set up the axis for the different plots
-    axs = [fig1.add_subplot(2,len(self.vals) , i) for i in range(1,len(self.vals)+1)]
+    self.axs = [fig1.add_subplot(2,len(self.vals) , i) for i in range(1,len(self.vals)+1)]
     #ax = plt.axes(xlim=(0, self.maxTime * self.arduinoArgs["fps"]-1), ylim=(0, 1023))
-    self.lines = list([(i,self.plotwindow(i,axs[i],self.arduinoArgs["sensorRanges"][i][0],self.arduinoArgs["sensorRanges"][i][1]))
+    self.lines = list([(i,self.plotwindow(i,self.axs[i],self.arduinoArgs["sensorRanges"][i][0],self.arduinoArgs["sensorRanges"][i][1]))
                       for i in range(len(self.vals))])
     # Set up the axis for the combined plots
     axsum = fig1.add_subplot(2, 1 , 2)
@@ -57,8 +65,9 @@ class SensorAnalyzer:
     anim1 = animation.FuncAnimation(fig1, self.updateall,
                                     fargs=self.lines,
                                     interval=1,blit=True)
-    for ax in axs:
+    for ax in self.axs:
       ax.legend(mode="expand",bbox_to_anchor=(0., 1.02, 1., .102),loc=3)
+    self.axs.append(axsum)
     # self.lines = list([ax.plot([], [],label=self.arduinoArgs["sensorNames"][i])
     #                   for i in range(len(self.vals))])
     # anim = animation.FuncAnimation(fig1, self.updateall,
@@ -96,6 +105,22 @@ class SensorAnalyzer:
           retlines = [val for (index,val) in lines]
           for (index,val) in lines:
               val.set_data(range(self.maxTime * self.arduinoArgs["fps"]), self.vals[index])
+              listval = list(self.vals[index])
+              minval = max(min(listval),self.arduinoArgs["sensorRanges"][index][0]) -10
+              maxval = min(max(listval),self.arduinoArgs["sensorRanges"][index][1]) +10
+              oldminval, oldmaxval = self.axs[index].get_ylim()
+              delay = (int(round(time.time() * 1000)))-self.refreshTime >1000
+              if((oldminval != minval or oldmaxval != maxval) and (maxval-minval)>50 and delay):
+                  self.axs[index].set_ylim(minval,maxval)
+                  self.torefresh = True
+
+
+          if (self.torefresh):
+            self.refreshTime = int(round(time.time() * 1000))
+            plt.draw()
+            self.torefresh = False
+
+
       except KeyboardInterrupt:
           print('exiting')
       return retlines
@@ -142,7 +167,7 @@ def main():
   print('reading from serial port %s...' % strPort)
 
   # plot parameters
-  sensorAnalyzer = SensorAnalyzer(strPort, 5)
+  sensorAnalyzer = SensorAnalyzer(strPort, 10)
 
   print('plotting data...')
 
