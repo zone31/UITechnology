@@ -3,7 +3,7 @@
 Display analog sensor data from arduino
 """
 
-import sys, serial, argparse, time, math
+import sys, serial, argparse, time, math, operator, select
 import numpy as np
 from time import sleep
 from collections import deque
@@ -15,6 +15,7 @@ import matplotlib.animation as animation
 class SensorAnalyzer:
   # constr
   def __init__(self, strPort, maxTime):
+      self.tempcounter = 1;
       # open serial port
       self.ser = serial.Serial(strPort, 115200)
       # Self time the framerate
@@ -46,7 +47,9 @@ class SensorAnalyzer:
   def run(self):
     # set up animation
     fig1 = plt.figure("All sensors")
-    #plt.ion()
+    # plt.title('Test Title')
+    plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1)
+    #.ion()
     # Set up the axis for the different plots
     self.axs = [fig1.add_subplot(2,len(self.vals) , i) for i in range(1,len(self.vals)+1)]
     #ax = plt.axes(xlim=(0, self.maxTime * self.arduinoArgs["fps"]-1), ylim=(0, 1023))
@@ -68,6 +71,8 @@ class SensorAnalyzer:
     for ax in self.axs:
       ax.legend(mode="expand",bbox_to_anchor=(0., 1.02, 1., .102),loc=3)
     self.axs.append(axsum)
+    #self.axs[len(self.axs)-1].set_title('Test Title')
+    # axsum.set_title('Test Title')
     # self.lines = list([ax.plot([], [],label=self.arduinoArgs["sensorNames"][i])
     #                   for i in range(len(self.vals))])
     # anim = animation.FuncAnimation(fig1, self.updateall,
@@ -86,15 +91,34 @@ class SensorAnalyzer:
           buf.pop()
           buf.appendleft(val)
 
+  def babyInfo(self, vals):
+    strings = ["Wut?","On belly","On back","On left","On right"]
+    thistext = self.axs[len(self.axs)-1].get_title()
+    idx,_ = max(enumerate(vals), key=operator.itemgetter(1))
+    titlestring = strings[idx]
+
+    if(thistext != titlestring):
+      self.axs[-1].set_title(titlestring)
+      plt.draw()
   # add data to the queue buffers
   def add(self, data):
     self.starttime = self.endtime
     self.endtime = int(round(time.time() * 1000))
-    sys.stdout.write('pulls:{} fps:{} delay:{}     \r'
-      .format(data[1], math.floor(1000/(self.endtime-self.starttime)),data[0]))
-    sys.stdout.flush()
+    # sys.stdout.write('pulls:{} fps:{} delay:{}     \r'
+    #   .format(data[1], math.floor(1000/(self.endtime-self.starttime)),data[0]))
+    # sys.stdout.flush()
+    dt = [];
     for i in range(len(data)-2):
       self.addToBuf(self.vals[i], data[i+2])
+      dt.append(int(data[i+2]))
+    self.babyInfo(dt)
+    i,o,e = select.select([sys.stdin],[],[],0.0001)
+    for s in i:
+        if s == sys.stdin:
+            inputt = sys.stdin.readline()
+            sys.stdout.write("\033[F")
+            print(self.tempcounter,dt)
+            self.tempcounter += 1
 
   # update all plots
   def updateall(self, frameNum, *lines):
@@ -167,7 +191,7 @@ def main():
   print('reading from serial port %s...' % strPort)
 
   # plot parameters
-  sensorAnalyzer = SensorAnalyzer(strPort, 10)
+  sensorAnalyzer = SensorAnalyzer(strPort, 20)
 
   print('plotting data...')
 
